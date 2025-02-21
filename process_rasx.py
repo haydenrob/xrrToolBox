@@ -1,7 +1,7 @@
 # Author:       Hayden Robertson
 # Date:         February 2025
 # This script converts binary .rasx files from the Rigaku XRR to plain text files.
-# Code snippets taken from https://github.com/MaxBuchta/RASX-Python.
+# Inspired by https://github.com/MaxBuchta/RASX-Python.
 
 beamheight = 0.05  # mm
 samplewidth = 10.0  # mm
@@ -136,11 +136,11 @@ class XRR:
                         if "Profile" in f:
                             with zip_file.open(
                                 f
-                            ) as first_file:
-                                first_file_content = first_file.read().decode(
+                            ) as subfile:
+                                subfile_content = subfile.read().decode(
                                     "utf-8"
                                 )
-                                lines = first_file_content.split(
+                                lines = subfile_content.split(
                                     "\n"
                                 )
                                 data_columns = []
@@ -212,13 +212,13 @@ class XRR:
                         ):
                             with zip_file.open(
                                 f
-                            ) as first_file:
-                                first_file_content = first_file.read().decode(
+                            ) as subfile:
+                                subfile_content = subfile.read().decode(
                                     "utf-8"
                                 )
 
                             soup = BeautifulSoup(
-                                first_file_content,
+                                subfile_content,
                                 "xml",
                             )
                             t = float(

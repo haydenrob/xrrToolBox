@@ -33,12 +33,12 @@ class XRR:
         beamheight=0.05,
         samplewidth=10.0,
         wavelength=None,
-        background=None,
+        bkg=None,
         measurementCond=None,
     ):
         self.beamheight = beamheight
         self.samplewidth = samplewidth
-        self.background = background
+        self.bkg = bkg
         self.wavelength = wavelength
         self.measurementCond = measurementCond
 
@@ -114,7 +114,6 @@ class XRR:
             self.save_name = os.path.basename(
                 file
             )[:-5]
-            print(file)
 
         else:
             self.pth = "."
@@ -257,6 +256,22 @@ class XRR:
         self.theta = merged_x
         self.y = merged_y
 
+    def background_corr(self):
+        """
+        Performs a background correction.
+
+        If bkg is None, it will take 0.9 times the average of the last ten y points.
+        If bkg is supplied, it will use that as a simple background subtraction.
+
+        """
+        if self.bkg is None:
+            _background = np.average(self.y[-5:]) * 0.9
+        else:
+            _background = self.bkg
+
+        self.y = self.y - _background
+        
+
     def plot(self, xaxis="q"):
         """
         Plots the data
@@ -284,11 +299,26 @@ class XRR:
 
         return fig, ax
 
-    def save_data(self):
+    def save_data(self, ask = True):
         """
         Saves the processed data as a text file.
 
         """
+
+        if ask:
+
+            _save_path = filedialog.asksaveasfile(
+                title="Select your save destination",
+                initialdir=self.pth+ "/",
+                initialfile = self.save_name+ ".dat",
+                filetypes=(
+                    ("DAT", "*.dat"),
+                    ("TEXT", "*.txt"),
+                    ("All files", "*.*"),
+                ),
+            )
+        else:
+            _save_path = self.pth + "/" + self.save_name+ ".dat"
 
         try:
             x = self.q
@@ -298,10 +328,7 @@ class XRR:
             xlabel = "theta"
 
         np.savetxt(
-            self.pth
-            + "/"
-            + self.save_name
-            + ".dat",
+            _save_path,
             np.array([x, self.y]).T,
             header=f"{xlabel},R",
             delimiter=",",

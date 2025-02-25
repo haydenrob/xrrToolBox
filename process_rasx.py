@@ -3,8 +3,8 @@
 # This script converts binary .rasx files from the Rigaku XRR to plain text files.
 # Inspired by https://github.com/MaxBuchta/RASX-Python.
 
-beamheight = 0.05  # mm
-samplewidth = 10.0  # mm
+BeamHeight = 0.05  # mm
+SampleWidth = 10.0  # mm
 
 import os
 import numpy as np
@@ -14,13 +14,14 @@ from tkinter import filedialog
 from bs4 import BeautifulSoup
 import matplotlib.pyplot as plt
 import copy
+import scipy
 
 
 class XRR:
     """
     Parameters:
     ___________
-    beamheight : float, height of the beam used for footprint correction calculations
+    BeamHeight : float, height of the beam used for footprint correction calculations
     samewidth : float, sample width used for footprint correction calculations
     wavelength : float, wavelength of radiation. If not supplied, it will extract from the .rasx file
     background : float, default background to supply for background subtraction calculations.
@@ -30,30 +31,66 @@ class XRR:
 
     def __init__(
         self,
-        beamheight=0.05,
-        samplewidth=10.0,
+        BeamHeight=0.05,
+        SampleWidth=10.0,
+        BeamSmearing=0.01,
+        SampleOffset=0,
         wavelength=None,
         bkg=None,
         measurementCond=None,
     ):
-        self.beamheight = beamheight
-        self.samplewidth = samplewidth
+        self.BeamHeight = BeamHeight
+        self.SampleWidth = SampleWidth
+        self.BeamSmearing = BeamSmearing
+        self.SampleOffset = SampleOffset
         self.bkg = bkg
         self.wavelength = wavelength
         self.measurementCond = measurementCond
 
-    def footprint_corr(self):
+    def footprint_corr(self, method="classic"):
         """
-        Function to conduct a footprint correction on the data.
+        Function to conduct a footprint correction on the data, assuning the shape of
+        the beam adheres to two back-to-back error functions.
         """
 
-        _new_y = copy.copy(self.y)
-        for i, m in enumerate(_new_y):
-            if self.samplewidth * np.sin(self.theta[i]) >= self.beamheight:
-                _new_y[i] *= self.samplewidth / self.beamheight * np.sin(self.theta[i])
-            else:
-                continue
-        self.y = _new_y
+        if method == "classic":
+            _SampleWidth = self.SampleWidth
+            _FWHM = self.BeamHeight
+            _Sigma = self.BeamSmearing
+            _SampleOffset = self.SampleOffset
+
+            x = np.linspace(-1 * (_FWHM + 4 * _Sigma), (_FWHM + 4 * _Sigma), 10000)
+            y = scipy.special.erf((_FWHM / 2 + x) / _Sigma) + scipy.special.erf(
+                (_FWHM / 2 - x) / _Sigma
+            )
+
+            NormErf = sum(y)
+
+            x0 = _SampleOffset
+
+            _EffSampleHigh = _SampleWidth * np.sin(np.radians(self.theta))
+
+            _FP = np.zeros_like(self.theta)
+
+            for i in range(len(_FP)):
+                mask = (-_EffSampleHigh[i] / 2 < (x - x0)) & ((x - x0) < _EffSampleHigh[i] / 2)
+                _FP[i] = np.sum(y[mask])
+
+            _FP[_FP == 0] = np.nan
+            _FP /= NormErf
+            _FP = 1 / _FP.T
+
+            self.y *= _FP
+
+        # ---- alt method -----
+        if method == "alt":
+            _new_y = copy.copy(self.y)
+            for i, m in enumerate(_new_y):
+                if self.SampleWidth * np.sin(self.theta[i]) >= self.BeamHeight:
+                    _new_y[i] *= self.SampleWidth / self.BeamHeight * np.sin(self.theta[i])
+                else:
+                    continue
+            self.y = _new_y
 
     def normalise(self):
         """
@@ -67,21 +104,21 @@ class XRR:
         Converts the given theta values into q_z values.
         """
 
-        self.theta = self.theta / 2 * np.pi / 180
-        q = 4 * np.pi * np.sin(self.theta) / self.wavelength
+        _theta = self.theta / 2 * np.pi / 180
+        q = 4 * np.pi * np.sin(_theta) / self.wavelength
         self.q = q
         self.x = q
 
     def process_data(self, file=None):
         """
         Function to import reflection data from a .rasx file.  This is the workhorse function.
-        A file is imported and converted from the binary format. Each subfile is iterated across 
-        (typically containing different angular ranges) to provide a complete x, y dataset for 
+        A file is imported and converted from the binary format. Each subfile is iterated across
+        (typically containing different angular ranges) to provide a complete x, y dataset for
         the full theta range.
 
         Parameters:
         ____________
-        file : string, default None. This is the .rasx file to be processed. If no file is provided, 
+        file : string, default None. This is the .rasx file to be processed. If no file is provided,
         a open file dialogue box will appear.
 
         """

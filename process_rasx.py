@@ -3,9 +3,6 @@
 # This script converts binary .rasx files from the Rigaku XRR to plain text files.
 # Inspired by https://github.com/MaxBuchta/RASX-Python.
 
-BeamHeight = 0.05  # mm
-SampleWidth = 10.0  # mm
-
 import os
 import numpy as np
 import zipfile

@@ -267,7 +267,7 @@ class XRR:
 
         if ask:
 
-            _save_path = filedialog.asksaveasfile(
+            _save_path = filedialog.asksaveasfilename(
                 title="Select your save destination",
                 initialdir=self.pth + "/",
                 initialfile=self.save_name + ".dat",

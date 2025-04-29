@@ -56,8 +56,14 @@ class XRR:
             _Sigma = self.BeamSmearing
             _SampleOffset = self.SampleOffset
 
-            x = np.linspace(-1 * (_FWHM + 4 * _Sigma), (_FWHM + 4 * _Sigma), 10000)
-            y = scipy.special.erf((_FWHM / 2 + x) / _Sigma) + scipy.special.erf(
+            x = np.linspace(
+                -1 * (_FWHM + 4 * _Sigma),
+                (_FWHM + 4 * _Sigma),
+                10000,
+            )
+            y = scipy.special.erf(
+                (_FWHM / 2 + x) / _Sigma
+            ) + scipy.special.erf(
                 (_FWHM / 2 - x) / _Sigma
             )
 
@@ -65,12 +71,21 @@ class XRR:
 
             x0 = _SampleOffset
 
-            _EffSampleHigh = _SampleWidth * np.sin(np.radians(self.theta))
+            _EffSampleHigh = (
+                _SampleWidth
+                * np.sin(np.radians(self.theta))
+            )
 
             _FP = np.zeros_like(self.theta)
 
             for i in range(len(_FP)):
-                mask = (-_EffSampleHigh[i] / 2 < (x - x0)) & ((x - x0) < _EffSampleHigh[i] / 2)
+                mask = (
+                    -_EffSampleHigh[i] / 2
+                    < (x - x0)
+                ) & (
+                    (x - x0)
+                    < _EffSampleHigh[i] / 2
+                )
                 _FP[i] = np.sum(y[mask])
 
             _FP[_FP == 0] = np.nan
@@ -83,8 +98,16 @@ class XRR:
         if method == "alt":
             _new_y = copy.copy(self.y)
             for i, m in enumerate(_new_y):
-                if self.SampleWidth * np.sin(self.theta[i]) >= self.BeamHeight:
-                    _new_y[i] *= self.SampleWidth / self.BeamHeight * np.sin(self.theta[i])
+                if (
+                    self.SampleWidth
+                    * np.sin(self.theta[i])
+                    >= self.BeamHeight
+                ):
+                    _new_y[i] *= (
+                        self.SampleWidth
+                        / self.BeamHeight
+                        * np.sin(self.theta[i])
+                    )
                 else:
                     continue
             self.y = _new_y
@@ -102,7 +125,12 @@ class XRR:
         """
 
         _theta = self.theta / 2 * np.pi / 180
-        q = 4 * np.pi * np.sin(_theta) / self.wavelength
+        q = (
+            4
+            * np.pi
+            * np.sin(_theta)
+            / self.wavelength
+        )
         self.q = q
         self.x = q
 
@@ -135,33 +163,55 @@ class XRR:
                 ),
             )
             self.pth = os.path.dirname(file)
-            self.save_name = os.path.basename(file)[:-5]
+            self.save_name = os.path.basename(
+                file
+            )[:-5]
 
         else:
             self.pth = "."
-            self.save_name = os.path.basename(file)[:-5]
+            self.save_name = os.path.basename(
+                file
+            )[:-5]
 
         with open(file, "rb") as binary_file:
             binary_data = binary_file.read()
             data = io.BytesIO(binary_data)
 
-            with zipfile.ZipFile(data, "r") as zip_file:
+            with zipfile.ZipFile(
+                data, "r"
+            ) as zip_file:
                 file_list = zip_file.namelist()
 
                 if file_list:
                     for f in file_list:
                         if "Profile" in f:
-                            with zip_file.open(f) as subfile:
-                                subfile_content = subfile.read().decode("utf-8")
-                                lines = subfile_content.split("\n")
+                            with zip_file.open(
+                                f
+                            ) as subfile:
+                                subfile_content = subfile.read().decode(
+                                    "utf-8"
+                                )
+                                lines = subfile_content.split(
+                                    "\n"
+                                )
                                 data_columns = []
                                 for line in lines:
-                                    line = line.lstrip("\ufeff")
-                                    columns = line.split("\t")
+                                    line = line.lstrip(
+                                        "\ufeff"
+                                    )
+                                    columns = line.split(
+                                        "\t"
+                                    )
                                     numeric_columns = [
-                                        float(column) for column in columns if column.strip()
+                                        float(
+                                            column
+                                        )
+                                        for column in columns
+                                        if column.strip()
                                     ]
-                                    data_columns.append(numeric_columns)
+                                    data_columns.append(
+                                        numeric_columns
+                                    )
 
                                 data_columns = [
                                     (
@@ -169,45 +219,70 @@ class XRR:
                                             x[0],
                                             x[1],
                                         ]
-                                        if len(x) >= 3
+                                        if len(x)
+                                        >= 3
                                         else x
                                     )
                                     for x in data_columns
                                 ]
-                                if data_columns and data_columns[-1] == []:
+                                if (
+                                    data_columns
+                                    and data_columns[
+                                        -1
+                                    ]
+                                    == []
+                                ):
                                     data_columns.pop()
 
-                                data_columns = np.array(data_columns)
-                                data_columns[:, 0] = np.round(
-                                    data_columns[:, 0],
-                                    2,
+                                data_columns = np.array(
+                                    data_columns
                                 )
-                                data_columns[:, 1] = np.round(
-                                    data_columns[:, 1],
-                                    4,
-                                )
-                            refls.append(data_columns)
+                            refls.append(
+                                data_columns
+                            )
 
-                        elif "MesurementConditions" in f:
-                            with zip_file.open(f) as subfile:
-                                subfile_content = subfile.read().decode("utf-8")
+                        elif (
+                            "MesurementConditions"
+                            in f
+                        ):
+                            with zip_file.open(
+                                f
+                            ) as subfile:
+                                subfile_content = subfile.read().decode(
+                                    "utf-8"
+                                )
 
                             soup = BeautifulSoup(
                                 subfile_content,
                                 "xml",
                             )
-                            t = float(soup.find("Speed").string)
+                            t = float(
+                                soup.find(
+                                    "Speed"
+                                ).string
+                            )
                             times.append(t)
 
-                            if self.wavelength is None:
-                                self.wavelength = float(soup.find("WavelengthKalpha1").string)
-                                self.measurementCond = soup
+                            if (
+                                self.wavelength
+                                is None
+                            ):
+                                self.wavelength = float(
+                                    soup.find(
+                                        "WavelengthKalpha1"
+                                    ).string
+                                )
+                                self.measurementCond = (
+                                    soup
+                                )
 
                         else:
                             continue
 
         for i, d in enumerate(refls):
-            merged_y.append(refls[i][:, 1] / times[i])
+            merged_y.append(
+                refls[i][:, 1] / times[i]
+            )
             merged_x.append(refls[i][:, 0])
 
         merged_x = np.concatenate(merged_x)
@@ -226,7 +301,9 @@ class XRR:
 
         """
         if self.bkg is None:
-            _background = np.average(self.y[-5:]) * 0.9
+            _background = (
+                np.average(self.y[-5:]) * 0.9
+            )
         else:
             _background = self.bkg
 
@@ -270,7 +347,8 @@ class XRR:
             _save_path = filedialog.asksaveasfilename(
                 title="Select your save destination",
                 initialdir=self.pth + "/",
-                initialfile=self.save_name + ".dat",
+                initialfile=self.save_name
+                + ".dat",
                 filetypes=(
                     ("DAT", "*.dat"),
                     ("TEXT", "*.txt"),
@@ -278,7 +356,12 @@ class XRR:
                 ),
             )
         else:
-            _save_path = self.pth + "/" + self.save_name + ".dat"
+            _save_path = (
+                self.pth
+                + "/"
+                + self.save_name
+                + ".dat"
+            )
 
         try:
             x = self.q
